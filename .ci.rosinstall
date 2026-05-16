@@ -1,0 +1,4 @@
+- git:
+    local-name: semubot_description
+    uri: https://github.com/SemuBot/semubot_description
+    version: main
