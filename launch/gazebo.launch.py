@@ -7,6 +7,8 @@ from launch.substitutions import (
 from launch_ros.actions import Node
 from launch_ros.parameter_descriptions import ParameterValue
 from launch_ros.substitutions import FindPackageShare
+from ament_index_python.packages import get_package_share_directory
+import os
 
 
 def generate_launch_description():
@@ -27,7 +29,7 @@ def generate_launch_description():
     ])
 
     robot_description_content = Command([
-        PathJoinSubstitution([FindExecutable(name='xacro')]), ' ', xacro_file
+        PathJoinSubstitution([FindExecutable(name='xacro')]), ' ', xacro_file, ' sim:=true'
     ])
 
     robot_description = ParameterValue(robot_description_content, value_type=str)
@@ -47,6 +49,7 @@ def generate_launch_description():
             EnvironmentVariable('GZ_SIM_RESOURCE_PATH', default_value=''),
             ':', PathJoinSubstitution([FindPackageShare('semubot_description'), '..']),
             ':', FindPackageShare('semubot_gazebo'),
+            ':', PathJoinSubstitution([FindPackageShare('realsense2_description'), '..']),
         ]
     )
 
@@ -82,7 +85,7 @@ def generate_launch_description():
         executable='parameter_bridge',
         name='odom_bridge',
         output='screen',
-        arguments=['/model/semubot/odometry@nav_msgs/msg/Odometry@gz.msgs.Odometry'],
+        arguments=['/model/semubot/odometry@nav_msgs/msg/Odometry[gz.msgs.Odometry'],
         remappings=[('/model/semubot/odometry', '/odom')]
     )
 
@@ -102,7 +105,7 @@ def generate_launch_description():
         executable='parameter_bridge',
         name='cmd_vel_bridge',
         output='screen',
-        arguments=['/cmd_vel@geometry_msgs/msg/Twist@gz.msgs.Twist']
+        arguments=['/cmd_vel@geometry_msgs/msg/Twist]gz.msgs.Twist']
     )
 
     clock_bridge = Node(
@@ -114,17 +117,43 @@ def generate_launch_description():
         remappings=[('/world/default/clock', '/clock')]
     )
 
+    tf_bridge = Node(
+        package='ros_gz_bridge',
+        executable='parameter_bridge',
+        name='tf_bridge',
+        output='screen',
+        arguments=['/model/semubot/tf@tf2_msgs/msg/TFMessage[gz.msgs.Pose_V'],
+        remappings=[('/model/semubot/tf', '/tf')]
+    )
+
     camera_bridge = Node(
         package='ros_gz_bridge',
         executable='parameter_bridge',
         name='camera_bridge',
         output='screen',
         arguments=[
-            '/camera/color/image_raw@sensor_msgs/msg/Image@gz.msgs.Image',
-            '/camera/aligned_depth_to_color/image_raw@sensor_msgs/msg/Image@gz.msgs.Image',
-            '/camera/depth/color/points@sensor_msgs/msg/PointCloud2@gz.msgs.PointCloudPacked',
-            '/camera/color/camera_info@sensor_msgs/msg/CameraInfo@gz.msgs.CameraInfo',
+            '/camera/image@sensor_msgs/msg/Image[gz.msgs.Image',
+            '/camera/depth_image@sensor_msgs/msg/Image[gz.msgs.Image',
+            '/camera/points@sensor_msgs/msg/PointCloud2[gz.msgs.PointCloudPacked',
+            '/camera/camera_info@sensor_msgs/msg/CameraInfo[gz.msgs.CameraInfo',
+        ],
+        remappings=[
+            ('/camera/image', '/camera/color/image_raw'),
+            ('/camera/depth_image', '/camera/aligned_depth_to_color/image_raw'),
+            ('/camera/points', '/camera/depth/color/points'),
+            ('/camera/camera_info', '/camera/color/camera_info'),
         ]
+    )
+
+    ekf_node = Node(
+        package='robot_localization',
+        executable='ekf_node',
+        name='ekf_node',
+        output='screen',
+        parameters=[
+            os.path.join(get_package_share_directory('semubot_gazebo'), 'config', 'ekf.yaml'),
+            {'use_sim_time': True},
+        ],
     )
 
     return LaunchDescription([
@@ -137,9 +166,11 @@ def generate_launch_description():
         gazebo_sim,
         robot_state_publisher_node,
         spawn_urdf_node,
+        tf_bridge,
         odom_bridge,
         joint_state_bridge,
         cmd_vel_bridge,
         clock_bridge,
         camera_bridge,
+        ekf_node,
     ])
