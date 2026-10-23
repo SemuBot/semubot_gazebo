@@ -51,6 +51,8 @@ Supported parameters:
 |---------|----------------------------------------|--------------------------------------------------|
 | `world` | Specify world the robot is spawned in  | `colors.sdf`, `maze.sdf`, `empty.sdf` (default) |
 | `x`, `y`, `z` | Specify the robot's spawn pose   | Number, `0` (default)                            |
+| `version` | Robot version: full V1 robot or V2 wheelbase | `v1` (default), `v2` |
+| `camera` | Add the RealSense D435i (V1 only) | `true` (default), `false` |
 
 #### 2.1. Gazebo launch
 

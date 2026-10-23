@@ -2,7 +2,7 @@ from launch import LaunchDescription
 from launch.actions import DeclareLaunchArgument, SetEnvironmentVariable, ExecuteProcess
 from launch.substitutions import (
     LaunchConfiguration, EnvironmentVariable,
-    PathJoinSubstitution, Command, FindExecutable
+    PathJoinSubstitution, Command, FindExecutable, PythonExpression
 )
 from launch_ros.actions import Node
 from launch_ros.parameter_descriptions import ParameterValue
@@ -24,12 +24,20 @@ def generate_launch_description():
     y_pos_arg = DeclareLaunchArgument('y', default_value='0', description='Spawn Y position')
     z_pos_arg = DeclareLaunchArgument('z', default_value='0', description='Spawn Z position')
 
+    version_arg = DeclareLaunchArgument('version', default_value='v1', choices=['v1', 'v2'],
+        description='Robot version: v1 (full robot) or v2 (wheelbase only)')
+    camera_arg = DeclareLaunchArgument('camera', default_value='true',
+        description='Add the RealSense D435i (V1 only)')
+
     xacro_file = PathJoinSubstitution([
-        FindPackageShare('semubot_description'), 'urdf', 'semubot.urdf.xacro'
+        FindPackageShare('semubot_description'), 'urdf',
+        PythonExpression(["'semubot.urdf.xacro' if '", LaunchConfiguration('version'),
+                          "' == 'v1' else 'semubot_v2.urdf.xacro'"])
     ])
 
     robot_description_content = Command([
-        PathJoinSubstitution([FindExecutable(name='xacro')]), ' ', xacro_file, ' sim:=true'
+        PathJoinSubstitution([FindExecutable(name='xacro')]), ' ', xacro_file,
+        ' sim:=true camera:=', LaunchConfiguration('camera')
     ])
 
     robot_description = ParameterValue(robot_description_content, value_type=str)
@@ -158,6 +166,8 @@ def generate_launch_description():
 
     return LaunchDescription([
         world_arg,
+        version_arg,
+        camera_arg,
         x_pos_arg,
         y_pos_arg,
         z_pos_arg,
